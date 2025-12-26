@@ -145,7 +145,6 @@ class StringVisitor extends RecursiveAstVisitor<void> {
         if (parent is MethodInvocation) {
           // final type = parent.methodName;
           String typeName = parent.methodName.name;
-          print(typeName);
           if (_uiWidgets.contains(typeName)) {
             return true;
           }

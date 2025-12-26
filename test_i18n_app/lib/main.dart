@@ -75,18 +75,18 @@ class _HomeWidgetState extends State<HomeWidget> {
               Text(
                 "Welcome Back $textString test $textString2 and $textString",
               ),
-              Text("Login"),
-              Text("Invalid OTP"),
-              Text("Invalid OTP"),
-              Text("Invalid OTP"),
+              Text('Login'),
+              Text(AppLocale.invalidOtp.getString(context)),
+              Text(AppLocale.invalidOtp.getString(context)),
+              Text('Invalid OTP'),
               ElevatedButton(
-                child: const Text('English'),
+                child: Text(AppLocale.english.getString(context)),
                 onPressed: () {
                   _localization.translate('en');
                 },
               ),
               ElevatedButton(
-                child: const Text('ភាសាខ្មែរ'),
+                child: Text(AppLocale.text_270ae7.getString(context)),
                 onPressed: () {
                   _localization.translate('km');
                 },

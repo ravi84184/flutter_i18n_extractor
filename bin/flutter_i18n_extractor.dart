@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter_i18n_extractor/replacer/replace_visitor.dart';
 import 'package:flutter_i18n_extractor/utils/key_generator.dart';
 import 'package:flutter_i18n_extractor/utils/string_filter.dart';
 import 'package:flutter_i18n_extractor/writer/locale_writer.dart';
@@ -40,7 +41,12 @@ void main(List<String> args) {
   }
 
   LocaleWriter.write(locale);
+  final stringToKey = parseAppLocale();
+  print(stringToKey);
 
+  for (final path in paths) {
+    replaceStringsInFile(path, stringToKey);
+  }
   // Ensure FlutterLocalization initialization exists in main()
   MainInitializer.ensureInitialization();
 }
