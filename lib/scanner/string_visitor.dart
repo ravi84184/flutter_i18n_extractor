@@ -7,23 +7,19 @@ class StringVisitor extends RecursiveAstVisitor<void> {
   @override
   void visitSimpleStringLiteral(SimpleStringLiteral node) {
     if (_shouldIgnore(node)) return;
-
     final value = node.value.trim();
     if (_isValid(value)) {
       texts.add(value);
     }
-
     super.visitSimpleStringLiteral(node);
   }
 
   bool _shouldIgnore(SimpleStringLiteral node) {
     final parent = node.parent;
-
     // Ignore imports/exports
     if (parent is ImportDirective || parent is ExportDirective) {
       return true;
     }
-
     return false;
   }
 

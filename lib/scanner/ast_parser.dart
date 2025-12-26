@@ -7,9 +7,7 @@ class AstParser {
   final AnalysisContextCollection _collection;
 
   AstParser(List<String> allPaths)
-      : _collection = AnalysisContextCollection(
-          includedPaths: allPaths,
-        );
+    : _collection = AnalysisContextCollection(includedPaths: allPaths);
 
   Set<String> extractStrings(String filePath) {
     final context = _collection.contextFor(filePath);
@@ -23,7 +21,6 @@ class AstParser {
 
     final visitor = StringVisitor();
     result.unit.visitChildren(visitor);
-
     return visitor.texts;
   }
 }
