@@ -1,118 +1,98 @@
 import 'dart:io';
+import 'package:yaml/yaml.dart';
 
 class MainInitializer {
-  /// Ensures FlutterLocalization.instance.ensureInitialized() is called in main()
   static void ensureInitialization() {
+    _fixMainDart();
+    _ensureFlutterLocalizationDependency();
+  }
+
+  static void _fixMainDart() {
     final mainFile = File('lib/main.dart');
     if (!mainFile.existsSync()) {
       print('⚠️ lib/main.dart not found');
       return;
     }
+    var content = mainFile.readAsStringSync();
 
-    final content = mainFile.readAsStringSync();
-
-    // Check if initialization already exists
-    if (_hasInitialization(content)) {
-      print('✅ FlutterLocalization initialization already exists');
-      return;
+    // Ensure 'package:flutter/material.dart' import
+    if (!content.contains("package:flutter/material.dart")) {
+      content = "import 'package:flutter/material.dart';\n" + content;
     }
 
-    // Modify the file
-    final modified = _addInitialization(content);
-    if (modified != null) {
-      mainFile.writeAsStringSync(modified);
-      print('✅ Added FlutterLocalization initialization to main()');
-    } else {
-      print('⚠️ Could not modify main() function');
+    // Ensure 'package:flutter_localization/flutter_localization.dart' import
+    if (!content.contains(
+      "package:flutter_localization/flutter_localization.dart",
+    )) {
+      content =
+          "import 'package:flutter_localization/flutter_localization.dart';\n" +
+          content;
     }
-  }
 
-  static bool _hasInitialization(String content) {
-    // Check for the initialization call within main() function
-    // Look for await FlutterLocalization.instance.ensureInitialized() after main() {
-    final mainPattern = RegExp(
-      r'void\s+main\s*\([^)]*\)\s*\{|Future<void>\s+main\s*\([^)]*\)\s+async\s*\{',
-    );
-    final mainMatch = mainPattern.firstMatch(content);
-
-    if (mainMatch == null) return false;
-
-    // Check if the call exists after main() declaration
-    final afterMain = content.substring(mainMatch.end);
-    return RegExp(
-      r'await\s+FlutterLocalization\.instance\.ensureInitialized\(\)',
-    ).hasMatch(afterMain);
-  }
-
-  static String? _addInitialization(String content) {
-    // Pattern 1: void main() { ... }
-    final voidMainPattern = RegExp(r'void\s+main\s*\([^)]*\)\s*\{');
-
-    // Pattern 2: Future<void> main() async { ... }
-    final futureMainPattern = RegExp(
+    // Ensure WidgetsFlutterBinding.ensureInitialized();
+    final mainFuncPattern = RegExp(
       r'Future<void>\s+main\s*\([^)]*\)\s+async\s*\{',
     );
-
-    String? result;
-
-    // Try Future<void> main() async { ... } first
-    if (futureMainPattern.hasMatch(content)) {
-      result = content.replaceFirst(
-        futureMainPattern,
-        'Future<void> main() async {\n    await FlutterLocalization.instance.ensureInitialized();\n',
-      );
+    final match = mainFuncPattern.firstMatch(content);
+    if (match != null) {
+      final bodyStart = match.end;
+      final afterMain = content.substring(bodyStart);
+      if (!afterMain.contains('WidgetsFlutterBinding.ensureInitialized();')) {
+        // Insert after opening {
+        content = content.replaceFirst(
+          mainFuncPattern,
+          '${match.group(0)}\n  WidgetsFlutterBinding.ensureInitialized();',
+        );
+      }
+      if (!afterMain.contains(
+        'await FlutterLocalization.instance.ensureInitialized();',
+      )) {
+        content = content.replaceFirst(
+          mainFuncPattern,
+          '${match.group(0)}\n  await FlutterLocalization.instance.ensureInitialized();',
+        );
+      }
     }
-    // Try void main() { ... } and convert to async
-    else if (voidMainPattern.hasMatch(content)) {
-      result = content.replaceFirst(
-        voidMainPattern,
-        'Future<void> main() async {\n    await FlutterLocalization.instance.ensureInitialized();\n',
-      );
-    }
-
-    // If we modified the content, ensure the import exists
-    if (result != null) {
-      result = _ensureImport(result);
-    }
-
-    return result;
+    mainFile.writeAsStringSync(content);
+    print('✅ main.dart updated for initialization.');
   }
 
-  static String _ensureImport(String content) {
-    // Check if flutter_localization package import exists
-    if (content.contains("package:flutter_localization") ||
-        content.contains('package:flutter_localization')) {
-      return content; // Import already exists
+  static void _ensureFlutterLocalizationDependency() {
+    final pubspecFile = File('pubspec.yaml');
+    if (!pubspecFile.existsSync()) {
+      print('⚠️ pubspec.yaml not found');
+      return;
     }
-
-    // Find the last import statement - match both single and double quotes
-    final singleQuotePattern = RegExp(r"import\s+'[^']*';", multiLine: true);
-    final doubleQuotePattern = RegExp(r'import\s+"[^"]*";', multiLine: true);
-
-    final singleImports = singleQuotePattern.allMatches(content);
-    final doubleImports = doubleQuotePattern.allMatches(content);
-
-    // Combine and find the last one
-    final allImports = <RegExpMatch>[];
-    allImports.addAll(singleImports);
-    allImports.addAll(doubleImports);
-
-    if (allImports.isEmpty) {
-      // No imports, add at the beginning
-      final import =
-          "import 'package:flutter_localization/flutter_localization.dart';\n";
-      return import + content;
+    final lines = pubspecFile.readAsLinesSync();
+    bool found = false;
+    final newLines = <String>[];
+    var inDependencies = false;
+    for (final line in lines) {
+      newLines.add(line);
+      if (line.trim() == 'dependencies:') {
+        inDependencies = true;
+      }
+      if (inDependencies && line.contains('flutter_localization')) {
+        found = true;
+      }
+      if (inDependencies && line.trim().isEmpty) {
+        if (!found) {
+          newLines.add('  flutter_localization: any');
+          found = true;
+        }
+        inDependencies = false;
+      }
     }
-
-    // Sort by position and get the last one
-    allImports.sort((a, b) => a.start.compareTo(b.start));
-    final lastImport = allImports.last;
-
-    // Add after last import
-    final before = content.substring(0, lastImport.end);
-    final after = content.substring(lastImport.end);
-    final import =
-        "\nimport 'package:flutter_localization/flutter_localization.dart';\n";
-    return before + import + after;
+    if (!found) {
+      // dependencies: was never found or no empty line after
+      for (int i = 0; i < newLines.length; i++) {
+        if (newLines[i].trim() == 'dependencies:') {
+          newLines.insert(i + 1, '  flutter_localization: any');
+          break;
+        }
+      }
+    }
+    pubspecFile.writeAsStringSync(newLines.join('\n'));
+    print('✅ flutter_localization ensured in pubspec.yaml.');
   }
 }

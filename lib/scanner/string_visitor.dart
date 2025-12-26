@@ -43,7 +43,7 @@ class StringVisitor extends RecursiveAstVisitor<void> {
     if (_shouldIgnore(node)) return;
 
     // Check if this string is in a UI widget
-    // if (!_isInUIWidget(node)) return;
+    if (!_isInUIWidget(node)) return;
 
     final value = node.value.trim();
     if (_isValid(value)) {
@@ -57,7 +57,7 @@ class StringVisitor extends RecursiveAstVisitor<void> {
     super.visitStringInterpolation(node);
 
     if (_shouldIgnoreInterpolation(node)) return;
-    // if (!_isInUIWidget(node)) return;
+    if (!_isInUIWidget(node)) return;
 
     // Extract the full interpolated string value
     final buffer = StringBuffer();
@@ -133,11 +133,8 @@ class StringVisitor extends RecursiveAstVisitor<void> {
     // Walk up the AST to find if this string is used in a widget constructor
     // Start from parent since node itself is the string literal/interpolation
     AstNode? current = node.parent;
-    final parent = current?.parent;
-    print("Node: ${parent.runtimeType}");
-    return true;
     int depth = 0;
-    const maxDepth = 30; // Prevent infinite loops
+    const maxDepth = 30;
 
     while (current != null && depth < maxDepth) {
       depth++;
@@ -145,16 +142,11 @@ class StringVisitor extends RecursiveAstVisitor<void> {
       // This is the most common case: Text("Login") -> ArgumentList -> InstanceCreationExpression(Text)
       if (current is ArgumentList) {
         final parent = current.parent;
-        if (parent is InstanceCreationExpression) {
-          final type = parent.constructorName.type;
-          String? typeName;
-
-          // Try to get the type name from the AST node
-          if (type is NamedType) {
-            typeName = type.name2.lexeme;
-          }
-
-          if (typeName != null && _uiWidgets.contains(typeName)) {
+        if (parent is MethodInvocation) {
+          // final type = parent.methodName;
+          String typeName = parent.methodName.name;
+          print(typeName);
+          if (_uiWidgets.contains(typeName)) {
             return true;
           }
         }
