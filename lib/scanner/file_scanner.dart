@@ -17,7 +17,15 @@ class FileScanner {
     return libDir
         .listSync(recursive: true)
         .whereType<File>()
+        // Only Dart files
         .where((f) => f.path.endsWith('.dart'))
+        // Exclude generated localization mixin / l10n Dart files
+        .where((f) {
+          final relative = p.relative(f.path, from: libPath);
+          // Ignore anything under lib/l10n/ (including app_locale.dart)
+          if (relative.startsWith('l10n${p.separator}')) return false;
+          return true;
+        })
         .map((f) => p.normalize(p.absolute(f.path)))
         .toList();
   }

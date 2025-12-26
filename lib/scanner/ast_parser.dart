@@ -12,13 +12,10 @@ class AstParser {
   Set<String> extractStrings(String filePath) {
     final context = _collection.contextFor(filePath);
     final session = context.currentSession;
-
     final result = session.getParsedUnit(filePath);
-
     if (result is! ParsedUnitResult) {
       return {};
     }
-
     final visitor = StringVisitor();
     result.unit.visitChildren(visitor);
     return visitor.texts;
